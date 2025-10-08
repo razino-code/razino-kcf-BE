@@ -6,6 +6,8 @@ import { Server } from "socket.io";
 const app = express();
 const PORT = 8080;
 
+let calling_mb = false;
+
 app.set("view engine", "ejs");
 
 // CORS 설정
@@ -30,10 +32,28 @@ app.get("/raspberry", (req, res) => {
       .toString()
       .padStart(2, "")} ==> ${req.ip}`
   );
-  res.render("raspberrypi_index.ejs", dataTime);
+  if (calling_mb == false) {
+    res.render("raspberrypi_index.ejs", dataTime);
+  } else if (calling_mb == true) {
+    res.redirect("/raspberryCall");
+  }
+});
+
+app.get("/raspberryCall", (req, res) => {
+  if (calling_mb == true) {
+    res.render("test.ejs");
+  } else if (calling_mb == false) {
+    res.redirect("/raspberry");
+  }
 });
 
 app.get("/mobile", (req, res) => {
   console.log(`모바일 접근 ${req.ip}`);
+  calling_mb = false;
   res.render("mobile_index.ejs");
+});
+
+app.get("/mobileCall", (req, res) => {
+  calling_mb = true;
+  res.send("yarr");
 });
