@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>WebRTC Direct Connection</title>
+    <title>WebRTC Receiver (R-Pi)</title>
     <style>
       body {
         font-family: sans-serif;
@@ -29,14 +29,12 @@
     </style>
   </head>
   <body>
-    <h1>WebRTC Direct Call</h1>
+    <h1>WebRTC Receiver (Raspberry Pi)</h1>
     <div class="container">
       <div class="controls">
         <button type="button" id="startCamBtn">1. Start Camera</button>
-        <button type="button" id="callBtn" disabled>Call (Mobile)</button>
-        <button type="button" id="waitBtn" disabled>
-          Wait for Call (R-Pi)
-        </button>
+        <button type="button" id="waitBtn" disabled>2. Wait for Call</button>
+        <button type="button" id="hangUpBtn" disabled>Hang Up</button>
         <p id="status">Ready</p>
       </div>
       <div>
