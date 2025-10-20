@@ -1,62 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <title>WebRTC Receiver (R-Pi)</title>
+    <title>영상통화 (수신)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
         font-family: sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        box-sizing: border-box;
       }
-      .container {
+      h1 {
+        font-size: 48px;
+        color: #333;
+        margin-bottom: 20px;
+      }
+      .video-container {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        width: 100%;
+        margin-bottom: 30px;
+      }
+      video {
+        border: 5px solid #ccc;
+        border-radius: 10px;
+        background-color: black;
+        width: 45%;
+        max-width: 640px;
+        height: auto;
+      }
+      .controls {
         display: flex;
         gap: 20px;
       }
-      .controls button {
-        padding: 10px;
-        font-size: 16px;
-        margin-bottom: 10px;
-        display: block;
-        width: 150px;
+      button {
+        padding: 25px 50px;
+        font-size: 36px;
+        font-weight: bold;
+        border-radius: 15px;
+        border: none;
+        cursor: pointer;
+        color: white;
       }
-      #status {
-        font-style: italic;
-        color: #555;
+      #callBtn {
+        background-color: #28a745; /* 초록색 */
       }
-      video {
-        border: 1px solid black;
-        background-color: #eee;
+      #hangUpBtn {
+        background-color: #dc3545; /* 빨간색 */
       }
     </style>
   </head>
   <body>
-    <h1>WebRTC Receiver (Raspberry Pi)</h1>
-    <div class="container">
-      <div class="controls">
-        <button type="button" id="startCamBtn">1. Start Camera</button>
-        <button type="button" id="waitBtn" disabled>2. Wait for Call</button>
-        <button type="button" id="hangUpBtn" disabled>Hang Up</button>
-        <p id="status">Ready</p>
-      </div>
-      <div>
-        <p>My Camera</p>
-        <video
-          id="localStream"
-          autoplay
-          playsinline
-          muted
-          width="320"
-          height="240"
-        ></video>
-        <p>Remote Camera</p>
-        <video
-          id="remoteStream"
-          autoplay
-          playsinline
-          width="320"
-          height="240"
-        ></video>
-      </div>
+    <h1>영상통화</h1>
+
+    <div class="video-container">
+      <video id="localStream" autoplay playsinline muted></video>
+      <video id="remoteStream" autoplay playsinline></video>
     </div>
+
+    <div class="controls">
+      <button type="button" id="callBtn">전화 받기</button>
+      <button type="button" id="hangUpBtn">끊기</button>
+    </div>
+
     <script src="peerConfig.js"></script>
   </body>
 </html>

@@ -1,11 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <META HTTP-EQUIV="refresh" CONTENT="10" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>razino connect</title>
+    <title>모바일 대기화면</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        color: white;
+        background: #333;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        text-align: center;
+      }
+      h1 {
+        font-size: 10vw;
+      }
+      #callButton {
+        margin-top: 5vh;
+        padding: 25px 50px;
+        font-size: 7vw;
+        font-weight: bold;
+        color: white;
+        background-color: #007bff; /* 파란색 */
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <a href="/mobileCall">통화연결하기</a>
+    <h1>모바일</h1>
+    <button id="callButton">어머니에게 전화걸기</button>
+
+    <script>
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${wsProtocol}//${window.location.host}/mobile`);
+
+      ws.onopen = () => {
+        console.log("모바일: 웹소켓 서버에 연결되었습니다.");
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("모바일: 메시지 수신", data);
+        if (data.type === "call_request") {
+          // 페이지 이동 대신, 현재 페이지에 수신 화면을 동적으로 생성합니다.
+          document.body.innerHTML = `
+            <div style="text-align: center;">
+              <h1>영상통화</h1>
+              <p style="font-size: 28px; margin-bottom: 50px;">전화가 왔습니다.</p>
+              <button id="answerBtn" style="width: 80%; max-width: 400px; padding: 30px; font-size: 36px; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; color: white; background-color: #28a745;">
+                받기
+              </button>
+            </div>
+          `;
+          document.getElementById("answerBtn").onclick = () => {
+            // '받기' 버튼을 누르면 수신자 모드로 통화 페이지로 이동합니다.
+            // 웹소켓 연결은 이 페이지 이동 전까지 유지됩니다.
+            window.location.href = "/mobileCall?callee=true";
+          };
+        }
+      };
+
+      document.getElementById("callButton").onclick = () => {
+        console.log("모바일: 라즈베리파이에게 전화걸기");
+        // 1. 웹소켓으로 통화 시작 메시지 전송
+        ws.send(
+          JSON.stringify({
+            type: "call_request",
+            from: "mobile",
+            to: "raspberry",
+          })
+        );
+        // 2. 통화 화면으로 이동
+        window.location.href = "/mobileCall";
+      };
+    </script>
   </body>
 </html>

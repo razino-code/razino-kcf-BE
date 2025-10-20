@@ -1,62 +1,292 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <title>WebRTC Caller (Mobile)</title>
+    <title>영상통화 (발신)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       body {
         font-family: sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        box-sizing: border-box;
       }
-      .container {
+      h1 {
+        font-size: 48px;
+        color: #333;
+        margin-bottom: 20px;
+      }
+      .video-container {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        width: 100%;
+        margin-bottom: 30px;
+      }
+      video {
+        border: 5px solid #ccc;
+        border-radius: 10px;
+        background-color: black;
+        width: 45%;
+        max-width: 640px;
+        height: auto;
+      }
+      .controls {
         display: flex;
         gap: 20px;
       }
-      .controls button {
-        padding: 10px;
-        font-size: 16px;
-        margin-bottom: 10px;
-        display: block;
-        width: 150px;
+      button {
+        padding: 20px 40px;
+        font-size: 28px;
+        font-weight: bold;
+        border-radius: 15px;
+        border: none;
+        cursor: pointer;
+        color: white;
       }
-      #status {
-        font-style: italic;
-        color: #555;
-      }
-      video {
-        border: 1px solid black;
-        background-color: #eee;
+      #hangUpBtn {
+        background-color: #dc3545; /* 빨간색 */
       }
     </style>
   </head>
   <body>
-    <h1>WebRTC Direct Call (Mobile)</h1>
-    <div class="container">
-      <div class="controls">
-        <button type="button" id="startCamBtn">1. Start Camera</button>
-        <button type="button" id="callBtn" disabled>2. Call</button>
-        <button type="button" id="hangUpBtn" disabled>Hang Up</button>
-        <p id="status">Ready</p>
-      </div>
-      <div>
-        <p>My Camera</p>
-        <video
-          id="localStream"
-          autoplay
-          playsinline
-          muted
-          width="320"
-          height="240"
-        ></video>
-        <p>Remote Camera</p>
-        <video
-          id="remoteStream"
-          autoplay
-          playsinline
-          width="320"
-          height="240"
-        ></video>
-      </div>
+    <h1>영상통화</h1>
+
+    <div class="video-container">
+      <video id="localStream" autoplay playsinline muted></video>
+      <video id="remoteStream" autoplay playsinline></video>
     </div>
-    <script src="peerConfig.js"></script>
+
+    <div class="controls">
+      <button type="button" id="callBtn" style="display: none">
+        전화 받기
+      </button>
+      <button type="button" id="hangUpBtn">끊기</button>
+    </div>
+
+    <script>
+      const hangUpBtn = document.getElementById("hangUpBtn");
+      const localStreamElem = document.getElementById("localStream");
+      const remoteStreamElem = document.getElementById("remoteStream");
+      const callBtn = document.getElementById("callBtn");
+
+      let localStream;
+      let iceCandidateQueue = [];
+      let pc; // PeerConnection
+      const SERVER_URL = window.location.origin;
+
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${wsProtocol}//${window.location.host}/mobile`);
+
+      const configuration = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+
+      // --- WebRTC 로직 시작 ---
+      async function startCall() {
+        console.log("통화 시작...");
+        try {
+          // 1. 로컬 미디어 가져오기
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          localStreamElem.srcObject = localStream;
+
+          // 2. PeerConnection 생성 및 스트림 추가
+          pc = new RTCPeerConnection(configuration);
+          pc.ontrack = (event) => {
+            remoteStreamElem.srcObject = event.streams[0];
+          };
+          // ICE Candidate를 찾으면 상대방에게 즉시 전송 (Trickle ICE)
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              console.log(
+                "모바일: ICE Candidate 발견, 전송합니다.",
+                event.candidate
+              );
+              ws.send(
+                JSON.stringify({
+                  type: "ice_candidate",
+                  from: "mobile",
+                  to: "raspberry",
+                  candidate: event.candidate,
+                })
+              );
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log("Mobile Connection State:", pc.connectionState);
+            if (
+              pc.connectionState === "disconnected" ||
+              pc.connectionState === "failed" ||
+              pc.connectionState === "closed"
+            ) {
+              hangUp(); // 연결이 끊어지면 자동으로 종료 처리
+            }
+          };
+          localStream
+            .getTracks()
+            .forEach((track) => pc.addTrack(track, localStream));
+
+          // 3. Offer 생성 및 LocalDescription으로 설정
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          // 4. 웹소켓으로 Offer 전송
+          console.log("Offer 전송 (웹소켓)");
+          ws.send(
+            JSON.stringify({
+              type: "offer",
+              from: "mobile",
+              to: "raspberry",
+              sdp: pc.localDescription,
+            })
+          );
+
+          console.log("Offer 전송 완료, Answer를 기다립니다.");
+        } catch (error) {
+          console.error("통화 시작 중 오류:", error);
+          alert("통화 연결에 실패했습니다: " + error.message);
+          hangUp();
+        }
+      }
+
+      ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "answer" && pc) {
+          console.log("Answer 수신 (웹소켓)");
+          if (pc.signalingState === "have-local-offer") {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          }
+        } else if (data.type === "ice_candidate" && pc) {
+          const candidate = new RTCIceCandidate(data.candidate);
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            console.log("모바일: ICE Candidate 수신, 즉시 추가합니다.");
+            await pc.addIceCandidate(candidate);
+          } else {
+            console.log(
+              "모바일: 아직 RemoteDescription이 설정되지 않아 ICE Candidate를 대기열에 추가합니다."
+            );
+            iceCandidateQueue.push(candidate);
+          }
+        } else if (data.type === "offer" && pc) {
+          console.log("Offer 수신 (웹소켓)");
+          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(
+            JSON.stringify({
+              type: "answer",
+              from: "mobile",
+              to: "raspberry",
+              sdp: answer,
+            })
+          );
+          console.log("Answer 전송 완료 (웹소켓)");
+          await processIceCandidateQueue(); // 대기열에 있던 ICE 처리
+        }
+      };
+
+      // --- 통화 종료 ---
+      async function hangUp() {
+        if (pc) {
+          pc.close();
+          pc = null;
+        }
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+          localStream = null;
+        }
+        localStreamElem.srcObject = null;
+        remoteStreamElem.srcObject = null;
+
+        // 상대방에게 통화 종료 알림
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({ type: "hangup", from: "mobile", to: "raspberry" })
+          );
+        }
+
+        window.location.href = "/mobile"; // 메인 화면으로 돌아가기
+      }
+      hangUpBtn.onclick = hangUp;
+
+      ws.onopen = () => {
+        console.log("모바일 통화페이지: 웹소켓 연결됨.");
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("callee") === "true") {
+          // 내가 수신자인 경우
+          callBtn.style.display = "block";
+          hangUpBtn.disabled = true;
+          callBtn.onclick = async () => {
+            callBtn.style.display = "none";
+            hangUpBtn.disabled = false;
+            localStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: true,
+            });
+            localStreamElem.srcObject = localStream;
+            pc = new RTCPeerConnection(configuration);
+            // 이벤트 핸들러 설정은 createPeerConnection 함수를 호출하는 것과 유사하게 여기서 직접 수행
+            pc.ontrack = (event) => {
+              remoteStreamElem.srcObject = event.streams[0];
+            };
+            pc.onicecandidate = (event) => {
+              if (event.candidate) {
+                ws.send(
+                  JSON.stringify({
+                    type: "ice_candidate",
+                    from: "mobile",
+                    to: "raspberry",
+                    candidate: event.candidate,
+                  })
+                );
+              }
+            };
+            pc.onconnectionstatechange = () => {
+              if (
+                pc.connectionState === "disconnected" ||
+                pc.connectionState === "failed"
+              ) {
+                hangUp();
+              }
+            };
+            localStream
+              .getTracks()
+              .forEach((track) => pc.addTrack(track, localStream));
+            // Offer가 이미 와있을 수 있으므로, Offer를 보내달라고 요청할 수도 있음
+            // 혹은 Offer가 오기를 기다림.
+          };
+        } else {
+          // 내가 발신자인 경우
+          startCall();
+        }
+      };
+
+      window.addEventListener("beforeunload", () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({ type: "hangup", from: "mobile", to: "raspberry" })
+          );
+        }
+        ws.close();
+      });
+
+      async function processIceCandidateQueue() {
+        while (iceCandidateQueue.length > 0 && pc && pc.remoteDescription) {
+          const candidate = iceCandidateQueue.shift();
+          console.log("대기열에 있던 ICE Candidate를 추가합니다.", candidate);
+          await pc.addIceCandidate(candidate);
+        }
+      }
+    </script>
   </body>
 </html>

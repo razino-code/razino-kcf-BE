@@ -1,23 +1,86 @@
 <!DOCTYPE html>
 <html lang="ko">
   <head>
-    <META HTTP-EQUIV="refresh" CONTENT="3" />
     <meta charset="UTF-8" />
+    <META HTTP-EQUIV="refresh" CONTENT="10" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>배경화면</title>
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        color: white;
+        background: #222;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        text-align: center;
+      }
+      #time {
+        font-size: 15vw;
+        font-weight: bold;
+      }
+      #date {
+        font-size: 8vw;
+        margin-bottom: 5vh;
+      }
+      #callButton {
+        margin-top: 5vh;
+        padding: 25px 50px;
+        font-size: 5vw;
+        font-weight: bold;
+        color: white;
+        background-color: #007bff; /* 파란색 */
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <div id="background"></div>
     <div id="date">
-      <%= `${(now.getMonth() + 1).toString().padStart(2, '')}월` %>
+      <%= `${(now.getMonth() + 1).toString().padStart(2, '')}월
+      ${now.getDate().toString().padStart(2, '')}일` %>
     </div>
     <div id="time">
-      <%= `${now.getHours()} : ${now.getMinutes().toString().padStart(2, '')}`
-      %>
+      <%= `${now.getHours().toString().padStart(2, '0')} :
+      ${now.getMinutes().toString().padStart(2, '0')}` %>
     </div>
+    <button id="callButton">아들에게 전화걸기</button>
+
+    <script>
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(
+        `${wsProtocol}//${window.location.host}/raspberry`
+      );
+
+      ws.onopen = () => {
+        console.log("라즈베리파이: 웹소켓 서버에 연결되었습니다.");
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("라즈베리파이: 메시지 수신", data);
+        if (data.type === "call_request") {
+          // 전화가 오면 통화 페이지로 이동
+          window.location.href = "/raspberryCall";
+        }
+      };
+
+      document.getElementById("callButton").onclick = () => {
+        console.log("라즈베리파이: 모바일에게 전화걸기");
+        ws.send(
+          JSON.stringify({
+            type: "call_request",
+            from: "raspberry",
+            to: "mobile",
+          })
+        );
+        // 발신자로서 통화 페이지로 이동
+        window.location.href = "/raspberryCall?caller=true";
+      };
+    </script>
   </body>
 </html>

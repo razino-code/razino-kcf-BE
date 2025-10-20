@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>전화 수신</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background-color: #333;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        text-align: center;
+      }
+      h1 {
+        font-size: 48px;
+        margin-bottom: 20px;
+      }
+      p {
+        font-size: 28px;
+        margin-bottom: 50px;
+      }
+      button {
+        width: 80%;
+        max-width: 400px;
+        padding: 30px;
+        font-size: 36px;
+        font-weight: bold;
+        border-radius: 50px;
+        border: none;
+        cursor: pointer;
+        color: white;
+        background-color: #28a745; /* 초록색 */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>영상통화</h1>
+    <p>전화가 왔습니다.</p>
+    <button id="answerBtn">받기</button>
+
+    <script>
+      // '받기' 버튼을 누르면 통화 페이지로 이동합니다.
+      // 모바일 통화 화면으로 이동하되, 수신자(callee)임을 알립니다.
+      document.getElementById("answerBtn").onclick = () => {
+        window.location.href = "/mobileCall?callee=true";
+      };
+    </script>
+  </body>
+</html>
